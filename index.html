@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Three.js GPU Stress Test</title>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --dark-bg: rgba(13, 17, 23, 0.95);
+            --active-color: #4B0082;
+            --button-bg: #1a1f2b;
+            --button-hover: #2d3748;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            color: var(--neon-blue);
+            background: #000;
+        }
+
+        #info,
+        #controls {
+            position: fixed;
+            background: var(--dark-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--neon-blue);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+        }
+
+        #info {
+            top: 20px;
+            left: 20px;
+            min-width: 200px;
+        }
+
+        #controls {
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 250px;
+        }
+
+        button {
+            padding: 12px;
+            border: 1px solid var(--neon-blue);
+            border-radius: 6px;
+            background: var(--button-bg);
+            color: var(--neon-blue);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: var(--button-hover);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+
+        button[data-active="true"] {
+            background: var(--active-color);
+            border-color: var(--active-color);
+            color: white;
+            box-shadow: 0 0 15px rgba(75, 0, 130, 0.4);
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-container label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: var(--button-bg);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .stat-label {
+            display: inline-block;
+            width: 100px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            color: white;
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="info">
+        <div><span class="stat-label">FPS:</span> <span id="fps" class="stat-value">0</span></div>
+        <div><span class="stat-label">Objects:</span> <span id="count" class="stat-value">0</span></div>
+        <div><span class="stat-label">Draw Calls:</span> <span id="drawCalls" class="stat-value">0</span></div>
+        <div><span class="stat-label">Triangles:</span> <span id="triangles" class="stat-value">0</span></div>
+        <div><span class="stat-label">Memory:</span> <span id="memory" class="stat-value">0 MB</span></div>
+    </div>
+    <div id="controls">
+        <button id="addBatch">Add 1000 Objects</button>
+        <button id="removeBatch">Remove 1000 Objects</button>
+        <button id="toggleLights" data-active="true">Toggle Dynamic Lights</button>
+        <button id="toggleBloom" data-active="false">Toggle Bloom Effect</button>
+        <button id="toggleWireframe" data-active="false">Toggle Wireframe</button>
+        <div class="slider-container">
+            <label for="lightIntensity">Light Intensity <span id="intensityValue" class="stat-value">0</span></label>
+            <input type="range" id="lightIntensity" min="500" max="5000" value="500" step="100">
+        </div>
+        <div class="controls-group">
+            <div class="control-row">
+                <label>Camera Distance</label>
+                <input type="range" id="cameraDistance" min="10" max="200" value="50" step="1">
+            </div>
+            <div class="control-row">
+                <label>Camera Speed</label>
+                <input type="range" id="cameraSpeed" min="0.1" max="2" value="1" step="0.1">
+            </div>
+            <div class="control-row">
+                <label>Auto Rotate</label>
+                <button id="toggleRotate" data-active="false">Toggle Rotation</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/main.js"></script>
+</body>
+
+</html>
