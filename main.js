@@ -6,6 +6,22 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 
 class GPUStressTest {
+    // Configuration options
+    static CONFIG = {
+        INITIAL_OBJECTS: 3000,
+        BATCH_SIZE: 1000,
+        INITIAL_LIGHT_INTENSITY: 1000,
+        INITIAL_CAMERA_DISTANCE: 50,
+        INITIAL_AUTO_ROTATE_SPEED: 2.0,
+        LIGHTS_COUNT: 5,
+        BLOOM_STRENGTH: 0.5,
+        BLOOM_RADIUS: 2.0,
+        BLOOM_THRESHOLD: 0.35,
+        DAMPING_FACTOR: 0.05,
+        LIGHT_DISTANCE: 50,
+        OBJECT_ROTATION_SPEED: 0.02
+    };
+
     constructor() {
         // Initialize core properties
         this.objects = [];
@@ -14,32 +30,30 @@ class GPUStressTest {
         this.areLightsDynamic = true;
         this.lastTime = performance.now();
         this.frameCount = 0;
-        this.lightIntensity = 500;
+        this.lightIntensity = GPUStressTest.CONFIG.INITIAL_LIGHT_INTENSITY;
         this.stats = {
             drawCalls: 0,
             triangles: 0,
             memory: 0
         };
 
-
         // Setup the application
         this.initScene();
         this.initPostProcessing();
         this.initControls();
-        this.setupOrbitControls()
+        this.setupOrbitControls();
         this.createLights();
         this.setupEventListeners();
 
         // Create initial objects
-        this.addBatch();
+        this.addBatch(GPUStressTest.CONFIG.INITIAL_OBJECTS);
         this.animate();
     }
 
-    // Initialize the 3D scene, camera, and renderer
     initScene() {
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.z = 50;
+        this.camera.position.z = GPUStressTest.CONFIG.INITIAL_CAMERA_DISTANCE;
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -47,41 +61,36 @@ class GPUStressTest {
         document.body.appendChild(this.renderer.domElement);
     }
 
-    // Setup post-processing effects
     initPostProcessing() {
         this.composer = new EffectComposer(this.renderer);
-
-        // Add render pass first
         const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
 
-        // Configure bloom with more suitable values
         this.bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            0.5,    // Bloom strength (reduced from 1.5)
-            0.8,    // Bloom radius
-            0.35    // Bloom threshold
+            GPUStressTest.CONFIG.BLOOM_STRENGTH,
+            GPUStressTest.CONFIG.BLOOM_RADIUS,
+            GPUStressTest.CONFIG.BLOOM_THRESHOLD
         );
         this.composer.addPass(this.bloomPass);
         this.bloomPass.enabled = false;
 
-        // Ensure render target is properly set
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1;
     }
 
-    // Initialize orbit controls for camera movement
     initControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
-        this.controls.autoRotateSpeed = 2.0; // Add rotation speed
+        this.controls.dampingFactor = GPUStressTest.CONFIG.DAMPING_FACTOR;
+        this.controls.autoRotate = false;
+        this.controls.autoRotateSpeed = GPUStressTest.CONFIG.INITIAL_AUTO_ROTATE_SPEED;
     }
 
-    // Create point lights with different colors
     createLights() {
         const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
-        for (let i = 0; i < 5; i++) {
-            const light = new THREE.PointLight(colors[i], this.lightIntensity, 50);
+        for (let i = 0; i < GPUStressTest.CONFIG.LIGHTS_COUNT; i++) {
+            const light = new THREE.PointLight(colors[i], this.lightIntensity, GPUStressTest.CONFIG.LIGHT_DISTANCE);
             light.position.set(
                 Math.random() * 40 - 20,
                 Math.random() * 40 - 20,
@@ -98,7 +107,6 @@ class GPUStressTest {
         }
     }
 
-    // Create a single 3D object with random properties
     createObject() {
         const geometries = [
             new THREE.BoxGeometry(1, 1, 1),
@@ -127,25 +135,23 @@ class GPUStressTest {
             Math.random() * Math.PI
         );
         mesh.userData.rotationSpeed = {
-            x: (Math.random() - 0.5) * 0.02,
-            y: (Math.random() - 0.5) * 0.02,
-            z: (Math.random() - 0.5) * 0.02
+            x: (Math.random() - 0.5) * GPUStressTest.CONFIG.OBJECT_ROTATION_SPEED,
+            y: (Math.random() - 0.5) * GPUStressTest.CONFIG.OBJECT_ROTATION_SPEED,
+            z: (Math.random() - 0.5) * GPUStressTest.CONFIG.OBJECT_ROTATION_SPEED
         };
         this.scene.add(mesh);
         this.objects.push(mesh);
     }
 
-    // Add a batch of objects to the scene
-    addBatch() {
-        for (let i = 0; i < 1000; i++) {
+    addBatch(batchSize = GPUStressTest.CONFIG.BATCH_SIZE) {
+        for (let i = 0; i < batchSize; i++) {
             this.createObject();
         }
         document.getElementById('count').textContent = this.objects.length;
     }
 
-    // Remove a batch of objects from the scene
-    removeBatch() {
-        const removeCount = Math.min(1000, this.objects.length);
+    removeBatch(batchSize = GPUStressTest.CONFIG.BATCH_SIZE) {
+        const removeCount = Math.min(batchSize, this.objects.length);
         for (let i = 0; i < removeCount; i++) {
             const object = this.objects.pop();
             this.scene.remove(object);
@@ -155,21 +161,18 @@ class GPUStressTest {
         document.getElementById('count').textContent = this.objects.length;
     }
 
-    // Toggle dynamic light movement
     toggleLights() {
         this.areLightsDynamic = !this.areLightsDynamic;
         const button = document.getElementById('toggleLights');
         button.dataset.active = this.areLightsDynamic.toString();
     }
 
-    // Toggle bloom effect
     toggleBloom() {
         this.bloomPass.enabled = !this.bloomPass.enabled;
         const button = document.getElementById('toggleBloom');
         button.dataset.active = this.bloomPass.enabled.toString();
     }
 
-    // Toggle wireframe mode
     toggleWireframe() {
         this.isWireframe = !this.isWireframe;
         this.objects.forEach(obj => {
@@ -179,7 +182,6 @@ class GPUStressTest {
         button.dataset.active = this.isWireframe.toString();
     }
 
-    // Update light intensity
     updateLightIntensity(value) {
         this.lightIntensity = value;
         this.lights.forEach(light => {
@@ -188,7 +190,6 @@ class GPUStressTest {
         document.getElementById('intensityValue').textContent = value;
     }
 
-    // Animation loop
     animate = () => {
         requestAnimationFrame(this.animate);
 
@@ -210,7 +211,6 @@ class GPUStressTest {
         document.getElementById('triangles').textContent = this.stats.triangles;
         document.getElementById('memory').textContent = `${this.stats.memory} MB`;
 
-
         // Animate objects
         this.objects.forEach(obj => {
             obj.rotation.x += obj.userData.rotationSpeed.x;
@@ -229,10 +229,9 @@ class GPUStressTest {
         }
 
         // Update controls
-        if (this.controls.autoRotate) {
-            this.controls.update();
-        }
+        this.controls.update();
 
+        // Render
         this.renderer.clear();
         this.composer.render();
     }
@@ -255,7 +254,6 @@ class GPUStressTest {
         document.getElementById('intensityValue').textContent = this.lightIntensity;
     }
 
-    // Setup event listeners
     setupEventListeners() {
         window.addEventListener('resize', () => {
             this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -264,8 +262,8 @@ class GPUStressTest {
             this.composer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        document.getElementById('addBatch').addEventListener('click', () => this.addBatch());
-        document.getElementById('removeBatch').addEventListener('click', () => this.removeBatch());
+        document.getElementById('addBatch').addEventListener('click', () => this.addBatch(GPUStressTest.CONFIG.BATCH_SIZE));
+        document.getElementById('removeBatch').addEventListener('click', () => this.removeBatch(GPUStressTest.CONFIG.BATCH_SIZE));
         document.getElementById('toggleLights').addEventListener('click', () => this.toggleLights());
         document.getElementById('toggleBloom').addEventListener('click', () => this.toggleBloom());
         document.getElementById('toggleWireframe').addEventListener('click', () => this.toggleWireframe());
