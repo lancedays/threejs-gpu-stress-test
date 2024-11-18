@@ -6,20 +6,56 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 
 class GPUStressTest {
-    // Inital Configuration options
     static CONFIG = {
+        // Scene settings
         INITIAL_OBJECTS: 3000,
         BATCH_SIZE: 1000,
+        CAMERA_FOV: 75,
+        CAMERA_NEAR: 0.1,
+        CAMERA_FAR: 1000,
+
+        // Initial states
         INITIAL_LIGHT_INTENSITY: 1000,
         INITIAL_CAMERA_DISTANCE: 50,
         INITIAL_AUTO_ROTATE_SPEED: 0.1,
+        INITIAL_OBJECTS_ROTATING: true,
+        INITIAL_LIGHTS_DYNAMIC: true,
+        INITIAL_WIREFRAME: false,
+        INITIAL_BLOOM_ENABLED: false,
+
+        // Light settings
         LIGHTS_COUNT: 5,
+        LIGHT_DISTANCE: 50,
+        LIGHT_COLORS: [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff],
+        LIGHT_SPHERE_SIZE: 0.5,
+        LIGHT_SPHERE_SEGMENTS: 16,
+
+        // Object settings
+        OBJECT_ROTATION_SPEED: 0.02,
+        OBJECT_SPAWN_RANGE: 100,
+        OBJECT_SHININESS: 100,
+        OBJECT_SPECULAR: 0x444444,
+
+        // Post-processing
         BLOOM_STRENGTH: 0.5,
         BLOOM_RADIUS: 2.0,
         BLOOM_THRESHOLD: 0.35,
+
+        // Controls
         DAMPING_FACTOR: 0.05,
-        LIGHT_DISTANCE: 50,
-        OBJECT_ROTATION_SPEED: 0.02
+        CAMERA_SPEED_MULTIPLIER: 10,
+
+        // Renderer
+        TONE_MAPPING: THREE.ACESFilmicToneMapping,
+        TONE_MAPPING_EXPOSURE: 1,
+
+        // Animation
+        LIGHT_ANIMATION_SPEEDS: {
+            X: 0.7,
+            Y: 0.5,
+            Z: 0.3
+        },
+        LIGHT_ANIMATION_RANGE: 30
     };
 
     constructor() {
@@ -33,9 +69,9 @@ class GPUStressTest {
 
         this.objects = [];
         this.lights = [];
-        this.objectsRotating = true;
-        this.isWireframe = false;
-        this.areLightsDynamic = true;
+        this.objectsRotating = GPUStressTest.CONFIG.INITIAL_OBJECTS_ROTATING;
+        this.isWireframe = GPUStressTest.CONFIG.INITIAL_WIREFRAME;
+        this.areLightsDynamic = GPUStressTest.CONFIG.INITIAL_LIGHTS_DYNAMIC;
         this.lightIntensity = GPUStressTest.CONFIG.INITIAL_LIGHT_INTENSITY;
 
         this.initScene();
@@ -43,7 +79,6 @@ class GPUStressTest {
         this.initControls();
         this.createLights();
         this.setupEventListeners();
-
         this.addBatch(GPUStressTest.CONFIG.INITIAL_OBJECTS);
         this.animate();
     }
@@ -61,7 +96,12 @@ class GPUStressTest {
 
     initScene() {
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(
+            GPUStressTest.CONFIG.CAMERA_FOV,
+            window.innerWidth / window.innerHeight,
+            GPUStressTest.CONFIG.CAMERA_NEAR,
+            GPUStressTest.CONFIG.CAMERA_FAR
+        );
         this.camera.position.z = GPUStressTest.CONFIG.INITIAL_CAMERA_DISTANCE;
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -82,35 +122,43 @@ class GPUStressTest {
             GPUStressTest.CONFIG.BLOOM_THRESHOLD
         );
         this.composer.addPass(this.bloomPass);
-        this.bloomPass.enabled = false;
+        this.bloomPass.enabled = GPUStressTest.CONFIG.INITIAL_BLOOM_ENABLED;
 
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1;
+        this.renderer.toneMapping = GPUStressTest.CONFIG.TONE_MAPPING;
+        this.renderer.toneMappingExposure = GPUStressTest.CONFIG.TONE_MAPPING_EXPOSURE;
     }
 
     initControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = GPUStressTest.CONFIG.DAMPING_FACTOR;
-        this.controls.autoRotate = true;
+        this.controls.autoRotate = false;
         this.controls.autoRotateSpeed = GPUStressTest.CONFIG.INITIAL_AUTO_ROTATE_SPEED;
     }
 
     createLights() {
-        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
         for (let i = 0; i < GPUStressTest.CONFIG.LIGHTS_COUNT; i++) {
-            const light = new THREE.PointLight(colors[i], this.lightIntensity, GPUStressTest.CONFIG.LIGHT_DISTANCE);
+            const light = new THREE.PointLight(
+                GPUStressTest.CONFIG.LIGHT_COLORS[i],
+                this.lightIntensity,
+                GPUStressTest.CONFIG.LIGHT_DISTANCE
+            );
             light.position.set(
-                Math.random() * 40 - 20,
-                Math.random() * 40 - 20,
-                Math.random() * 40 - 20
+                Math.random() * GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE - GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE / 2,
+                Math.random() * GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE - GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE / 2,
+                Math.random() * GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE - GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE / 2
             );
             this.scene.add(light);
             this.lights.push(light);
 
-            // Add visible sphere for each light source
-            const sphereGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-            const sphereMaterial = new THREE.MeshBasicMaterial({ color: colors[i] });
+            const sphereGeometry = new THREE.SphereGeometry(
+                GPUStressTest.CONFIG.LIGHT_SPHERE_SIZE,
+                GPUStressTest.CONFIG.LIGHT_SPHERE_SEGMENTS,
+                GPUStressTest.CONFIG.LIGHT_SPHERE_SEGMENTS
+            );
+            const sphereMaterial = new THREE.MeshBasicMaterial({
+                color: GPUStressTest.CONFIG.LIGHT_COLORS[i]
+            });
             const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
             light.add(sphere);
         }
@@ -119,24 +167,24 @@ class GPUStressTest {
     createObject() {
         const geometries = [
             new THREE.BoxGeometry(1, 1, 1),
-            new THREE.SphereGeometry(0.5, 16, 16),
+            new THREE.SphereGeometry(0.5, GPUStressTest.CONFIG.LIGHT_SPHERE_SEGMENTS, GPUStressTest.CONFIG.LIGHT_SPHERE_SEGMENTS),
             new THREE.TetrahedronGeometry(0.5),
-            new THREE.TorusGeometry(0.5, 0.2, 16, 32),
+            new THREE.TorusGeometry(0.5, 0.2, GPUStressTest.CONFIG.LIGHT_SPHERE_SEGMENTS, 32),
             new THREE.OctahedronGeometry(0.5)
         ];
 
         const geometry = geometries[Math.floor(Math.random() * geometries.length)];
         const material = new THREE.MeshPhongMaterial({
             color: Math.random() * 0xffffff,
-            shininess: 100,
-            specular: 0x444444
+            shininess: GPUStressTest.CONFIG.OBJECT_SHININESS,
+            specular: GPUStressTest.CONFIG.OBJECT_SPECULAR
         });
 
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(
-            Math.random() * 100 - 50,
-            Math.random() * 100 - 50,
-            Math.random() * 100 - 50
+            Math.random() * GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE - GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE / 2,
+            Math.random() * GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE - GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE / 2,
+            Math.random() * GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE - GPUStressTest.CONFIG.OBJECT_SPAWN_RANGE / 2
         );
         mesh.rotation.set(
             Math.random() * Math.PI,
@@ -172,14 +220,12 @@ class GPUStressTest {
 
     toggleLights() {
         this.areLightsDynamic = !this.areLightsDynamic;
-        const button = document.getElementById('toggleLights');
-        button.dataset.active = this.areLightsDynamic.toString();
+        document.getElementById('toggleLights').dataset.active = this.areLightsDynamic.toString();
     }
 
     toggleBloom() {
         this.bloomPass.enabled = !this.bloomPass.enabled;
-        const button = document.getElementById('toggleBloom');
-        button.dataset.active = this.bloomPass.enabled.toString();
+        document.getElementById('toggleBloom').dataset.active = this.bloomPass.enabled.toString();
     }
 
     toggleWireframe() {
@@ -187,14 +233,12 @@ class GPUStressTest {
         this.objects.forEach(obj => {
             obj.material.wireframe = this.isWireframe;
         });
-        const button = document.getElementById('toggleWireframe');
-        button.dataset.active = this.isWireframe.toString();
+        document.getElementById('toggleWireframe').dataset.active = this.isWireframe.toString();
     }
 
     toggleObjectRotation() {
         this.objectsRotating = !this.objectsRotating;
-        const button = document.getElementById('toggleObjRotate');
-        button.dataset.active = this.objectsRotating.toString();
+        document.getElementById('toggleObjRotate').dataset.active = this.objectsRotating.toString();
     }
 
     toggleCameraRotation() {
@@ -235,9 +279,11 @@ class GPUStressTest {
         if (this.areLightsDynamic) {
             const time = Date.now() * 0.001;
             this.lights.forEach((light, i) => {
-                light.position.x = Math.sin(time * 0.7 + i * 2) * 30;
-                light.position.y = Math.cos(time * 0.5 + i * 1.5) * 30;
-                light.position.z = Math.sin(time * 0.3 + i * 1.2) * 30;
+                const { X, Y, Z } = GPUStressTest.CONFIG.LIGHT_ANIMATION_SPEEDS;
+                const range = GPUStressTest.CONFIG.LIGHT_ANIMATION_RANGE;
+                light.position.x = Math.sin(time * X + i * 2) * range;
+                light.position.y = Math.cos(time * Y + i * 1.5) * range;
+                light.position.z = Math.sin(time * Z + i * 1.2) * range;
             });
         }
 
@@ -286,6 +332,7 @@ class GPUStressTest {
         document.getElementById('toggleBloom').addEventListener('click', () => this.toggleBloom());
         document.getElementById('toggleWireframe').addEventListener('click', () => this.toggleWireframe());
         document.getElementById('toggleRotate').addEventListener('click', () => this.toggleCameraRotation());
+        document.getElementById('toggleObjRotate').addEventListener('click', () => this.toggleObjectRotation());
 
         // Slider controls
         document.getElementById('lightIntensity').addEventListener('input',
@@ -293,11 +340,9 @@ class GPUStressTest {
         document.getElementById('cameraDistance').addEventListener('input',
             e => this.camera.position.setLength(Number(e.target.value)));
         document.getElementById('cameraSpeed').addEventListener('input',
-            e => this.controls.autoRotateSpeed = Number(e.target.value) * 10);
+            e => this.controls.autoRotateSpeed = Number(e.target.value) * GPUStressTest.CONFIG.CAMERA_SPEED_MULTIPLIER);
         document.getElementById('rotationSpeed').addEventListener('input',
             e => this.updateObjectRotationSpeed(Number(e.target.value)));
-        document.getElementById('toggleObjRotate').addEventListener('click',
-            () => this.toggleObjectRotation());
 
         // Set initial values
         document.getElementById('intensityValue').textContent = this.lightIntensity;
