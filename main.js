@@ -12,7 +12,7 @@ class GPUStressTest {
         BATCH_SIZE: 1000,
         INITIAL_LIGHT_INTENSITY: 1000,
         INITIAL_CAMERA_DISTANCE: 50,
-        INITIAL_AUTO_ROTATE_SPEED: 2.0,
+        INITIAL_AUTO_ROTATE_SPEED: 0.1,
         LIGHTS_COUNT: 5,
         BLOOM_STRENGTH: 0.5,
         BLOOM_RADIUS: 2.0,
@@ -92,7 +92,7 @@ class GPUStressTest {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = GPUStressTest.CONFIG.DAMPING_FACTOR;
-        this.controls.autoRotate = false;
+        this.controls.autoRotate = true;
         this.controls.autoRotateSpeed = GPUStressTest.CONFIG.INITIAL_AUTO_ROTATE_SPEED;
     }
 
@@ -197,6 +197,11 @@ class GPUStressTest {
         button.dataset.active = this.objectsRotating.toString();
     }
 
+    toggleCameraRotation() {
+        this.controls.autoRotate = !this.controls.autoRotate;
+        document.getElementById('toggleRotate').dataset.active = this.controls.autoRotate.toString();
+    }
+
     updateLightIntensity(value) {
         this.lightIntensity = value;
         this.lights.forEach(light => {
@@ -216,15 +221,6 @@ class GPUStressTest {
             this.stats.frameCount = 0;
             this.stats.lastTime = currentTime;
         }
-
-        // Update stats
-        this.stats.drawCalls = this.renderer.info.render.calls;
-        this.stats.triangles = this.renderer.info.render.triangles;
-        this.stats.memory = Math.round(window.performance?.memory?.usedJSHeapSize / 1048576) || 0;
-
-        document.getElementById('drawCalls').textContent = this.stats.drawCalls;
-        document.getElementById('triangles').textContent = this.stats.triangles;
-        document.getElementById('memory').textContent = `${this.stats.memory} MB`;
 
         // Animate objects
         if (this.objectsRotating) {
@@ -248,9 +244,30 @@ class GPUStressTest {
         // Update controls
         this.controls.update();
 
-        // Render
-        this.renderer.clear();
-        this.composer.render();
+        // Reset renderer info
+        this.renderer.info.reset();
+
+        if (this.bloomPass.enabled) {
+            this.stats.triangles = this.objects.reduce((total, obj) => {
+                return total + obj.geometry.attributes.position.count;
+            }, 0);
+            this.stats.drawCalls = this.objects.length + this.lights.length;
+            this.renderer.clear();
+            this.composer.render();
+        } else {
+            this.renderer.clear();
+            this.renderer.render(this.scene, this.camera);
+            this.stats.drawCalls = this.renderer.info.render.calls;
+            this.stats.triangles = this.renderer.info.render.triangles;
+        }
+
+        // Update memory stats
+        this.stats.memory = Math.round(window.performance?.memory?.usedJSHeapSize / 1048576) || 0;
+
+        // Update display
+        document.getElementById('drawCalls').textContent = this.stats.drawCalls;
+        document.getElementById('triangles').textContent = this.stats.triangles;
+        document.getElementById('memory').textContent = `${this.stats.memory} MB`;
     }
 
     setupEventListeners() {
@@ -268,10 +285,7 @@ class GPUStressTest {
         document.getElementById('toggleLights').addEventListener('click', () => this.toggleLights());
         document.getElementById('toggleBloom').addEventListener('click', () => this.toggleBloom());
         document.getElementById('toggleWireframe').addEventListener('click', () => this.toggleWireframe());
-        document.getElementById('toggleRotate').addEventListener('click', () => {
-            this.controls.autoRotate = !this.controls.autoRotate;
-            document.getElementById('toggleRotate').dataset.active = this.controls.autoRotate.toString();
-        });
+        document.getElementById('toggleRotate').addEventListener('click', () => this.toggleCameraRotation());
 
         // Slider controls
         document.getElementById('lightIntensity').addEventListener('input',
