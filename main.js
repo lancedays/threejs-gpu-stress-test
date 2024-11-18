@@ -6,7 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 
 class GPUStressTest {
-    // Configuration options
+    // Inital Configuration options
     static CONFIG = {
         INITIAL_OBJECTS: 3000,
         BATCH_SIZE: 1000,
