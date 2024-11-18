@@ -23,31 +23,40 @@ class GPUStressTest {
     };
 
     constructor() {
-        // Initialize core properties
-        this.objects = [];
-        this.lights = [];
-        this.isWireframe = false;
-        this.areLightsDynamic = true;
-        this.lastTime = performance.now();
-        this.frameCount = 0;
-        this.lightIntensity = GPUStressTest.CONFIG.INITIAL_LIGHT_INTENSITY;
         this.stats = {
             drawCalls: 0,
             triangles: 0,
-            memory: 0
+            memory: 0,
+            frameCount: 0,
+            lastTime: performance.now()
         };
 
-        // Setup the application
+        this.objects = [];
+        this.lights = [];
+        this.objectsRotating = true;
+        this.isWireframe = false;
+        this.areLightsDynamic = true;
+        this.lightIntensity = GPUStressTest.CONFIG.INITIAL_LIGHT_INTENSITY;
+
         this.initScene();
         this.initPostProcessing();
         this.initControls();
-        this.setupOrbitControls();
         this.createLights();
         this.setupEventListeners();
 
-        // Create initial objects
         this.addBatch(GPUStressTest.CONFIG.INITIAL_OBJECTS);
         this.animate();
+    }
+
+    updateObjectRotationSpeed(value) {
+        const speed = value * GPUStressTest.CONFIG.OBJECT_ROTATION_SPEED;
+        this.objects.forEach(obj => {
+            obj.userData.rotationSpeed = {
+                x: (Math.random() - 0.5) * speed,
+                y: (Math.random() - 0.5) * speed,
+                z: (Math.random() - 0.5) * speed
+            };
+        });
     }
 
     initScene() {
@@ -182,6 +191,12 @@ class GPUStressTest {
         button.dataset.active = this.isWireframe.toString();
     }
 
+    toggleObjectRotation() {
+        this.objectsRotating = !this.objectsRotating;
+        const button = document.getElementById('toggleObjRotate');
+        button.dataset.active = this.objectsRotating.toString();
+    }
+
     updateLightIntensity(value) {
         this.lightIntensity = value;
         this.lights.forEach(light => {
@@ -194,12 +209,12 @@ class GPUStressTest {
         requestAnimationFrame(this.animate);
 
         // FPS counter
-        this.frameCount++;
+        this.stats.frameCount++;
         const currentTime = performance.now();
-        if (currentTime - this.lastTime >= 1000) {
-            document.getElementById('fps').textContent = this.frameCount;
-            this.frameCount = 0;
-            this.lastTime = currentTime;
+        if (currentTime - this.stats.lastTime >= 1000) {
+            document.getElementById('fps').textContent = this.stats.frameCount;
+            this.stats.frameCount = 0;
+            this.stats.lastTime = currentTime;
         }
 
         // Update stats
@@ -212,11 +227,13 @@ class GPUStressTest {
         document.getElementById('memory').textContent = `${this.stats.memory} MB`;
 
         // Animate objects
-        this.objects.forEach(obj => {
-            obj.rotation.x += obj.userData.rotationSpeed.x;
-            obj.rotation.y += obj.userData.rotationSpeed.y;
-            obj.rotation.z += obj.userData.rotationSpeed.z;
-        });
+        if (this.objectsRotating) {
+            this.objects.forEach(obj => {
+                obj.rotation.x += obj.userData.rotationSpeed.x;
+                obj.rotation.y += obj.userData.rotationSpeed.y;
+                obj.rotation.z += obj.userData.rotationSpeed.z;
+            });
+        }
 
         // Animate lights
         if (this.areLightsDynamic) {
@@ -236,25 +253,8 @@ class GPUStressTest {
         this.composer.render();
     }
 
-    setupOrbitControls() {
-        document.getElementById('cameraDistance').addEventListener('input', (e) => {
-            const distance = Number(e.target.value);
-            this.camera.position.setLength(distance);
-        });
-
-        document.getElementById('cameraSpeed').addEventListener('input', (e) => {
-            this.controls.autoRotateSpeed = Number(e.target.value) * 10;
-        });
-
-        document.getElementById('toggleRotate').addEventListener('click', () => {
-            this.controls.autoRotate = !this.controls.autoRotate;
-            document.getElementById('toggleRotate').dataset.active = this.controls.autoRotate.toString();
-        });
-
-        document.getElementById('intensityValue').textContent = this.lightIntensity;
-    }
-
     setupEventListeners() {
+        // Window resize
         window.addEventListener('resize', () => {
             this.camera.aspect = window.innerWidth / window.innerHeight;
             this.camera.updateProjectionMatrix();
@@ -262,17 +262,31 @@ class GPUStressTest {
             this.composer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        document.getElementById('addBatch').addEventListener('click', () => this.addBatch(GPUStressTest.CONFIG.BATCH_SIZE));
-        document.getElementById('removeBatch').addEventListener('click', () => this.removeBatch(GPUStressTest.CONFIG.BATCH_SIZE));
+        // Button controls
+        document.getElementById('addBatch').addEventListener('click', () => this.addBatch());
+        document.getElementById('removeBatch').addEventListener('click', () => this.removeBatch());
         document.getElementById('toggleLights').addEventListener('click', () => this.toggleLights());
         document.getElementById('toggleBloom').addEventListener('click', () => this.toggleBloom());
         document.getElementById('toggleWireframe').addEventListener('click', () => this.toggleWireframe());
+        document.getElementById('toggleRotate').addEventListener('click', () => {
+            this.controls.autoRotate = !this.controls.autoRotate;
+            document.getElementById('toggleRotate').dataset.active = this.controls.autoRotate.toString();
+        });
 
-        // Light intensity slider
-        const intensitySlider = document.getElementById('lightIntensity');
-        intensitySlider.addEventListener('input', (e) => this.updateLightIntensity(Number(e.target.value)));
+        // Slider controls
+        document.getElementById('lightIntensity').addEventListener('input',
+            e => this.updateLightIntensity(Number(e.target.value)));
+        document.getElementById('cameraDistance').addEventListener('input',
+            e => this.camera.position.setLength(Number(e.target.value)));
+        document.getElementById('cameraSpeed').addEventListener('input',
+            e => this.controls.autoRotateSpeed = Number(e.target.value) * 10);
+        document.getElementById('rotationSpeed').addEventListener('input',
+            e => this.updateObjectRotationSpeed(Number(e.target.value)));
+        document.getElementById('toggleObjRotate').addEventListener('click',
+            () => this.toggleObjectRotation());
 
-        this.setupOrbitControls();
+        // Set initial values
+        document.getElementById('intensityValue').textContent = this.lightIntensity;
     }
 }
 
